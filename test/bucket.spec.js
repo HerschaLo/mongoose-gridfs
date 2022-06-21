@@ -33,6 +33,8 @@ describe('mongoose gridfs', () => {
     expect(GridFSBucket.prototype.openUploadStreamWithId).to.exist;
     expect(GridFSBucket.prototype.openDownloadStream).to.exist;
     expect(GridFSBucket.prototype.delete).to.exist;
+    expect(GridFSBucket.prototype.deleteFileById).to.exist;
+    expect(GridFSBucket.prototype.deleteAllFileVersions).to.exist;
     expect(GridFSBucket.prototype.find).to.exist;
     expect(GridFSBucket.prototype.openDownloadStreamByName).to.exist;
     expect(GridFSBucket.prototype.rename).to.exist;
@@ -212,10 +214,30 @@ describe('mongoose gridfs', () => {
   // removers
   it('should remove a file using its id', (done) => {
     const bucket = createBucket();
-    bucket.deleteFile(ids[0], (error, result) => {
+    bucket.deleteFileById(ids[0], async (error, result) => {
       expect(error).to.not.exist;
       expect(result).to.eql(ids[0]);
       done(error, result);
+    });
+  });
+
+  it('should remove all the versions of a file using its filename', (done) => {
+    const bucket = createBucket();
+
+    const fromFile = path.join(__dirname, 'fixtures', 'text.txt');
+    const readableStream = fs.createReadStream(fromFile);
+    const filename = 'text.txt';
+    const contentType = mime.getType('.txt');
+    const options = { filename, contentType };
+
+    bucket.writeFile(options, readableStream, () => {
+      bucket.deleteAllFileVersions('text.txt', async (error, result) => {
+        expect(error).to.not.exist;
+        expect(result).to.eql('text.txt');
+        const fileCount = await bucket.find({ filename: 'text.txt' }).count();
+        expect(fileCount).to.eql(0);
+        done(error, result);
+      });
     });
   });
 });

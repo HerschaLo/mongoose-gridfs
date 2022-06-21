@@ -333,8 +333,8 @@ GridFSBucket.prototype.readFile = function readFile(optns, done) {
 /* removers */
 
 /**
- * @function deleteFile
- * @name deleteFile
+ * @function deleteFileById
+ * @name deleteFileById
  * @alias unlink
  * @description Remove an existing file and its chunks.
  * @param {ObjectId} _id The id of the file doc
@@ -347,16 +347,63 @@ GridFSBucket.prototype.readFile = function readFile(optns, done) {
  * @example
  *
  * const bucket = createBucket();
- * bucket.deleteFile(_id, (error, results) => { ... });
+ * bucket.deleteFileById(_id, (error, results) => { ... });
  */
-GridFSBucket.prototype.deleteFile = function deleteFile(_id, done) {
+GridFSBucket.prototype.deleteFileById = function deleteFileById(_id, done) {
   this.delete(_id, function afterDelete(error) {
     return done(error, _id);
   });
 };
 
-GridFSBucket.prototype.unlink = GridFSBucket.prototype.deleteFile;
+GridFSBucket.prototype.unlink = GridFSBucket.prototype.deleteFileById;
+GridFSBucket.prototype.deleteFile = GridFSBucket.prototype.deleteFileById;
 
+/**
+ * @function deleteAllFileVersions
+ * @name deleteAllFileVersions
+ * @alias unlinkAllVersions
+ * @description Remove all versions of an existing file and their chunks.
+ * @param {filename} filename name of the file
+ * @param {Function} done a callback to invoke on success or error
+ * @author stephen le <stephen.dt.le@gmail.com>
+ * @license MIT
+ * @since 1.3.1
+ * @version 0.1.0
+ * @instance
+ * @example
+ *
+ * const bucket = createBucket();
+ * bucket.deleteAllFileVersions(_id, (error, results) => { ... });
+ */
+GridFSBucket.prototype.deleteAllFileVersions =
+  async function deleteAllFileVersions(filename, done) {
+    const versions = this.find({ filename });
+    const versionCount = await versions.count();
+    let counter = 0;
+    let error = null;
+    await new Promise((resolve) => {
+      versions.forEach((version) => {
+        counter += 1;
+        /* eslint no-underscore-dangle: ["error", { "allow": ["_id"] }] */
+        const versionId = version._id;
+
+        this.delete(versionId, function afterDelete(e) {
+          if (e) {
+            error = e;
+          }
+          return null;
+        });
+
+        if (counter === versionCount) {
+          return resolve();
+        }
+        return null;
+      });
+
+      return null;
+    });
+    return done(error, filename);
+  };
 /* finders */
 
 /**
@@ -512,7 +559,7 @@ GridFSBucket.prototype._removeFile = function _removeFile(request, file, done) {
   // eslint-disable-next-line no-underscore-dangle
   if (file._id) {
     // eslint-disable-next-line no-underscore-dangle
-    return this.deleteFile(file._id, done);
+    return this.deleteFileById(file._id, done);
   }
   // no operation
 
